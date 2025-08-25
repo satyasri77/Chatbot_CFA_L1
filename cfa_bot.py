@@ -18,33 +18,43 @@ st.title("📚 CFA Level 1 Tutor Bot")
 st.markdown("This bot answers questions **only from CFA curriculum resources**.")
 
 # ---------- Load or Build Vector DB ----------
-VECTORSTORE_PATH = "faiss_index"
+# VECTORSTORE_PATH = "faiss_index"
 
-if not os.path.exists(VECTORSTORE_PATH):
-    st.info("Building knowledge base from CFA PDFs...")
-    documents = []
-    pdf_folder = "data"  # your folder with CFA PDFs
-    for file in os.listdir(pdf_folder):
-        if file.endswith(".pdf"):
-            loader = PyPDFLoader(os.path.join(pdf_folder, file))
-            docs = loader.load()
-            for d in docs:
-                d.metadata["source"] = file
-            documents.extend(docs)
+# if not os.path.exists(VECTORSTORE_PATH):
+#     st.info("Building knowledge base from CFA PDFs...")
+#     documents = []
+#     pdf_folder = "data"  # your folder with CFA PDFs
+#     for file in os.listdir(pdf_folder):
+#         if file.endswith(".pdf"):
+#             loader = PyPDFLoader(os.path.join(pdf_folder, file))
+#             docs = loader.load()
+#             for d in docs:
+#                 d.metadata["source"] = file
+#             documents.extend(docs)
 
-    # Split into chunks
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-    split_docs = text_splitter.split_documents(documents)
+#     # Split into chunks
+#     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+#     split_docs = text_splitter.split_documents(documents)
 
-    # Embeddings with Google Gemini
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vectorstore = FAISS.from_documents(split_docs, embeddings)
+#     # Embeddings with Google Gemini
+#     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+#     vectorstore = FAISS.from_documents(split_docs, embeddings)
 
-    # Save for reuse
-    vectorstore.save_local(VECTORSTORE_PATH)
+#     # Save for reuse
+#     vectorstore.save_local(VECTORSTORE_PATH)
 
-else:
-    vectorstore = FAISS.load_local(VECTORSTORE_PATH, GoogleGenerativeAIEmbeddings(model="models/embedding-001"))
+# else:
+#     vectorstore = FAISS.load_local(VECTORSTORE_PATH, GoogleGenerativeAIEmbeddings(model="models/embedding-001"))
+
+# ---------- Load Prebuilt Vector DB ----------
+VECTORSTORE_PATH = "cfa_index"
+
+embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+vectorstore = FAISS.load_local(
+    VECTORSTORE_PATH,
+    embeddings,
+    allow_dangerous_deserialization=True
+)
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
