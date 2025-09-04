@@ -87,4 +87,4 @@ Answer:
 for q, a, sources in st.session_state.chat_history:
     st.markdown(f"**You:** {q}")
     st.markdown(f"**Bot:** {a}")
-    st.markdown(f"_Sources: {', '.join(set(sources))}_")
+    # st.markdown(f"_Sources: {', '.join(set(sources))}_")
