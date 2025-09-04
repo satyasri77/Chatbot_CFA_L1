@@ -6,3 +6,4 @@ pypdf
 langchain-community
 langchain-google-genai
 sentence-transformers
+accelerate
