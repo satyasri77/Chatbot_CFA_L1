@@ -2,33 +2,23 @@ import os
 import streamlit as st
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM,pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM,AutoModelForCausalLM, pipeline
 
 # ---------- CONFIG ----------
-VECTORSTORE_PATH = "cfa_index"  # Prebuilt FAISS folder
+VECTORSTORE_PATH = "cfa_index"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-LOCAL_LLM = "google/flan-t5-base"  # You can switch to a lighter one like "google/flan-t5-base"
+LOCAL_LLM = "google/flan-t5-xl"  # Consider flan-t5-xl or a better model like mistral if you can
 
-# ---------- Streamlit App ----------
-st.set_page_config(page_title="CFA Tutor Bot", layout="wide")
-st.title("📚 CFA Level 1 Tutor Bot")
-st.markdown("This bot answers questions **only from CFA curriculum resources**.")
-
-# ---------- Load Prebuilt FAISS Index ----------
+# ---------- Load Vectorstore ----------
 @st.cache_resource
 def load_vectorstore():
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-    vectorstore = FAISS.load_local(
-        VECTORSTORE_PATH,
-        embeddings,
-        allow_dangerous_deserialization=True
-    )
-    return vectorstore
+    return FAISS.load_local(VECTORSTORE_PATH, embeddings, allow_dangerous_deserialization=True)
 
 vectorstore = load_vectorstore()
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-# ---------- Load Local Language Model ----------
+# ---------- Load LLM ----------
 @st.cache_resource
 def load_local_llm():
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
@@ -38,26 +28,44 @@ def load_local_llm():
 
 llm_pipeline = load_local_llm()
 
-# ---------- Chat History ----------
+# ---------- Streamlit Setup ----------
+st.set_page_config(page_title="CFA Tutor Bot", layout="wide")
+st.title("📚 CFA Level 1 Tutor Bot")
+st.markdown("Ask CFA exam-style multiple-choice questions. The bot will explain correct and incorrect options based on the official curriculum.")
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# ---------- Chat Input ----------
-user_input = st.chat_input("Ask a CFA-related question...")
+# ---------- User Input ----------
+user_input = st.chat_input("Enter your CFA question with 3 options (A, B, C)...")
 
 if user_input:
-    with st.spinner("Thinking..."):
-        # Retrieve relevant documents
+    with st.spinner("Analyzing..."):
         docs = retriever.get_relevant_documents(user_input)
         context = "\n\n".join([doc.page_content for doc in docs])
         sources = [doc.metadata.get("source", "unknown") for doc in docs]
 
-        # Prompt construction (no pre-existing 'answer' mistake)
+        # 👇 Better prompt for reasoning + structure
         prompt = f"""
-You are a CFA Level 1 tutor.
-Use ONLY the provided context to answer the question clearly and accurately.
-Explain your reasoning for incorrect answers and correct answer for the provided 3 options for CFA level 1 exam, and cite relevant concepts if available.
-If the answer is not found in the context, say: "The answer is not available in the provided context."
+You are a CFA Level 1 tutor bot.
+
+You will receive a multiple-choice question with 3 options (A, B, C). Your task is to:
+
+1. Identify the **correct option** based ONLY on the provided context.
+2. Explain **why the correct option is right**.
+3. Explain **why the other options are incorrect**.
+4. If the answer cannot be determined from the context, reply with: 
+   "The answer is not available in the provided context."
+
+Format your answer like this:
+
+Correct Answer: B  
+Explanation:  
+- Option A: [Why it's wrong]  
+- Option B: [Why it's correct]  
+- Option C: [Why it's wrong]
+
+---
 
 Question: {user_input}
 
@@ -66,25 +74,20 @@ Context:
 
 Answer:
 """
-                # Generate answer using the local LLM
+
         try:
             output = llm_pipeline(prompt)[0]["generated_text"]
-            # Clean up prompt echo from model output (optional)
             if "Answer:" in output:
                 answer = output.split("Answer:")[-1].strip()
             else:
                 answer = output.strip()
         except Exception as e:
-            answer = f"⚠️ Error generating response: {str(e)}"
-    
-        # Store in session state
+            answer = f"⚠️ Error generating response: {e}"
+
         st.session_state.chat_history.append((user_input, answer, sources))
-
-
-
 
 # ---------- Display Chat ----------
 for q, a, sources in st.session_state.chat_history:
     st.markdown(f"**You:** {q}")
     st.markdown(f"**Bot:** {a}")
-    # st.markdown(f"_Sources: {', '.join(set(sources))}_")
+    st.markdown(f"<sub>Sources: {', '.join(set(sources))}</sub>", unsafe_allow_html=True)
