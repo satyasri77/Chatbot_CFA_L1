@@ -38,6 +38,8 @@ def load_local_llm():
     )
     return generator
 
+llm_pipeline = load_local_llm()
+
 # ---------- Streamlit Setup ----------
 st.set_page_config(page_title="CFA Tutor Bot", layout="wide")
 st.title("📚 CFA Level 1 Tutor Bot")
