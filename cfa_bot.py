@@ -21,9 +21,11 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 # ---------- Load LLM ----------
 @st.cache_resource
 def load_local_llm():
-    tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
+    HF_TOKEN = hf_token
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM,use_auth_token=HF_TOKEN)
     model = AutoModelForCausalLM.from_pretrained(
         LOCAL_LLM,
+        use_auth_token=HF_TOKEN,
         device_map="auto",         # Automatically maps to GPU if available
         torch_dtype="auto"         # Uses appropriate precision
     )
