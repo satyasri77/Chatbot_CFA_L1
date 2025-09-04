@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM,pipeline
 
 # ---------- CONFIG ----------
 VECTORSTORE_PATH = "cfa_index"  # Prebuilt FAISS folder
@@ -32,8 +32,8 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 @st.cache_resource
 def load_local_llm():
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
-    model = AutoModelForCausalLM.from_pretrained(LOCAL_LLM, device_map="auto", torch_dtype="auto")
-    generator = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=512)
+    model = AutoModelForSeq2SeqLM.from_pretrained(LOCAL_LLM)
+    generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer, max_new_tokens=512)
     return generator
 
 llm_pipeline = load_local_llm()
