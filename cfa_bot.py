@@ -2,11 +2,12 @@ import os
 import streamlit as st
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 # ---------- CONFIG ----------
-VECTORSTORE_PATH = "cfa_index"  # prebuilt FAISS folder
+VECTORSTORE_PATH = "cfa_index"  # Prebuilt FAISS folder
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-LOCAL_LLM = "mistralai/Mistral-7B-Instruct-v0.1"
+LOCAL_LLM = "google/flan-t5-base"  # You can switch to a lighter one like "google/flan-t5-base"
 
 # ---------- Streamlit App ----------
 st.set_page_config(page_title="CFA Tutor Bot", layout="wide")
@@ -32,8 +33,8 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 def load_local_llm():
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
     model = AutoModelForCausalLM.from_pretrained(LOCAL_LLM, device_map="auto", torch_dtype="auto")
-    pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=512)
-    return pipe
+    generator = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=512)
+    return generator
 
 llm_pipeline = load_local_llm()
 
@@ -41,19 +42,22 @@ llm_pipeline = load_local_llm()
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# ---------- User Input ----------
+# ---------- Chat Input ----------
 user_input = st.chat_input("Ask a CFA-related question...")
-if user_input:
-    docs = retriever.get_relevant_documents(user_input)
-    context = "\n\n".join([d.page_content for d in docs])
-    sources = [d.metadata.get("source", "unknown") for d in docs]
 
-    # Construct prompt
-    prompt = f"""
-You are a CFA Level 1 tutor. 
-Use ONLY the provided context to answer the question clearly and accurately. 
-Explain your reasoning, and cite concepts if available. 
-If the answer is not found in the context, say "The answer is not available in the provided context."
+if user_input:
+    with st.spinner("Thinking..."):
+        # Retrieve relevant documents
+        docs = retriever.get_relevant_documents(user_input)
+        context = "\n\n".join([doc.page_content for doc in docs])
+        sources = [doc.metadata.get("source", "unknown") for doc in docs]
+
+        # Prompt construction (no pre-existing 'answer' mistake)
+        prompt = f"""
+You are a CFA Level 1 tutor.
+Use ONLY the provided context to answer the question clearly and accurately.
+Explain your reasoning, and cite relevant concepts if available.
+If the answer is not found in the context, say: "The answer is not available in the provided context."
 
 Question: {user_input}
 
@@ -62,15 +66,22 @@ Context:
 
 Answer:
 """
-
-    # Generate answer
-    generated = llm_pipeline(prompt)[0]["generated_text"]
+                # Generate answer using the local LLM
+        try:
+            output = llm_pipeline(prompt)[0]["generated_text"]
+            # Clean up prompt echo from model output (optional)
+            if "Answer:" in output:
+                answer = output.split("Answer:")[-1].strip()
+            else:
+                answer = output.strip()
+        except Exception as e:
+            answer = f"⚠️ Error generating response: {str(e)}"
     
-    # Post-process (remove prompt echo)
-    answer = generated.split("Answer:")[-1].strip()
+        # Store in session state
+        st.session_state.chat_history.append((user_input, answer, sources))
 
-    # Save to session
-    st.session_state.chat_history.append((user_input, answer, sources))
+
+
 
 # ---------- Display Chat ----------
 for q, a, sources in st.session_state.chat_history:
