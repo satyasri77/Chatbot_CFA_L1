@@ -22,11 +22,21 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 @st.cache_resource
 def load_local_llm():
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
-    model = AutoModelForCausalLM.from_pretrained(LOCAL_LLM)
-    generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+    model = AutoModelForCausalLM.from_pretrained(
+        LOCAL_LLM,
+        device_map="auto",         # Automatically maps to GPU if available
+        torch_dtype="auto"         # Uses appropriate precision
+    )
+    generator = pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        max_new_tokens=512,
+        do_sample=True,
+        temperature=0.1,
+        top_p=0.95
+    )
     return generator
-
-llm_pipeline = load_local_llm()
 
 # ---------- Streamlit Setup ----------
 st.set_page_config(page_title="CFA Tutor Bot", layout="wide")
