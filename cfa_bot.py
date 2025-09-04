@@ -56,7 +56,7 @@ if user_input:
         prompt = f"""
 You are a CFA Level 1 tutor.
 Use ONLY the provided context to answer the question clearly and accurately.
-Explain your reasoning, and cite relevant concepts if available.
+Explain your reasoning for incorrect answers and correct answer for the provided 3 options for CFA level 1 exam, and cite relevant concepts if available.
 If the answer is not found in the context, say: "The answer is not available in the provided context."
 
 Question: {user_input}
