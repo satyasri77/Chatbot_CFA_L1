@@ -7,7 +7,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM,AutoModelForCausal
 # ---------- CONFIG ----------
 VECTORSTORE_PATH = "cfa_index"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-LOCAL_LLM = "google/flan-t5-xl"  # Consider flan-t5-xl or a better model like mistral if you can
+LOCAL_LLM = "mistralai/Mistral-7B-Instruct-v0.1"  # Consider flan-t5-xl or a better model like mistral if you can
 
 # ---------- Load Vectorstore ----------
 @st.cache_resource
@@ -22,8 +22,8 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 @st.cache_resource
 def load_local_llm():
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
-    model = AutoModelForSeq2SeqLM.from_pretrained(LOCAL_LLM)
-    generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer, max_new_tokens=512)
+    model = AutoModelForCausalLM.from_pretrained(LOCAL_LLM)
+    generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
     return generator
 
 llm_pipeline = load_local_llm()
