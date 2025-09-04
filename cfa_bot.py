@@ -21,7 +21,7 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 # ---------- Load LLM ----------
 @st.cache_resource
 def load_local_llm():
-    HF_TOKEN = hf_token
+    HF_TOKEN = st.secrets["HF_TOKEN"]
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM,use_auth_token=HF_TOKEN)
     model = AutoModelForCausalLM.from_pretrained(
         LOCAL_LLM,
